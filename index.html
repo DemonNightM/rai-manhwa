@@ -2,55 +2,186 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Hızlı Manhwa Okuyucu</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zen Reader | Modern Manhwa Viewer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
-        body { background: #111; color: white; display: flex; flex-direction: column; align-items: center; margin: 0; font-family: sans-serif; }
-        #viewer img { display: block; max-width: 100%; height: auto; margin-bottom: 0; }
-        .controls { padding: 20px; position: sticky; top: 0; background: rgba(0,0,0,0.8); width: 100%; text-align: center; z-index: 100; }
-        input[type="file"] { cursor: pointer; }
+        :root {
+            --bg-color: #0f0f0f;
+            --accent-color: #3d5afe;
+            --text-color: #e0e0e0;
+            --panel-bg: #1e1e1e;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* Üst Menü / Kontrol Paneli */
+        .header {
+            width: 100%;
+            background: var(--panel-bg);
+            padding: 15px 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h1 { margin: 0; font-size: 1.2rem; letter-spacing: 2px; color: var(--accent-color); text-transform: uppercase; }
+
+        /* Özelleştirilmiş Dosya Seçme Butonu */
+        .file-upload {
+            position: relative;
+            display: inline-block;
+        }
+
+        .file-upload input[type="file"] {
+            position: absolute;
+            left: 0; top: 0; opacity: 0;
+            width: 100%; height: 100%;
+            cursor: pointer;
+        }
+
+        .custom-button {
+            background: var(--accent-color);
+            color: white;
+            padding: 10px 25px;
+            border-radius: 30px;
+            font-weight: bold;
+            transition: transform 0.2s, background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: none;
+        }
+
+        .file-upload:hover .custom-button {
+            background: #536dfe;
+            transform: translateY(-2px);
+        }
+
+        #status { font-size: 0.85rem; color: #888; margin: 0; }
+
+        /* Okuyucu Alanı */
+        #viewer {
+            width: 100%;
+            max-width: 800px; /* PC'de çok yayılmasın diye */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #viewer img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-bottom: 1px solid #000; /* Sayfalar arası ince ayrım */
+        }
+
+        /* Yükleme Ekranı Animasyonu */
+        .loader {
+            display: none;
+            width: 30px; height: 30px;
+            border: 3px solid #333;
+            border-top: 3px solid var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-top: 10px;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Mobil Ayarlar */
+        @media (max-width: 600px) {
+            #viewer { max-width: 100%; }
+            .header { padding: 10px 0; }
+        }
     </style>
 </head>
 <body>
 
-<div class="controls">
-    <input type="file" id="zipInput" accept=".zip">
-    <p id="status">Bir .zip dosyası seçin...</p>
+<div class="header">
+    <h1>Zen Reader</h1>
+    <div class="file-upload">
+        <div class="custom-button">
+            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+            ZIP DOSYASI SEÇ
+        </div>
+        <input type="file" id="zipInput" accept=".zip">
+    </div>
+    <p id="status">Bekleniyor...</p>
+    <div id="loader" class="loader"></div>
 </div>
 
 <div id="viewer"></div>
 
 <script>
-    document.getElementById('zipInput').addEventListener('change', async (e) => {
+    const zipInput = document.getElementById('zipInput');
+    const status = document.getElementById('status');
+    const viewer = document.getElementById('viewer');
+    const loader = document.getElementById('loader');
+
+    zipInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        const status = document.getElementById('status');
-        const viewer = document.getElementById('viewer');
+        // Temizlik ve Hazırlık
         viewer.innerHTML = '';
-        status.innerText = "Dosyalar işleniyor...";
+        status.innerText = "Dosyalar açılıyor...";
+        loader.style.display = "block";
 
-        const jszip = new JSZip();
-        const zip = await jszip.loadAsync(file);
-        
-        // Dosya listesini al ve resim olanları filtrele
-        let fileList = Object.keys(zip.files).filter(name => 
-            name.match(/\.(jpg|jpeg|png|webp|gif)$/i) && !zip.files[name].dir
-        );
-
-        // Doğal sıralama (1, 2, 10 şeklinde)
-        fileList.sort((a, b) => a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'}));
-
-        for (let fileName of fileList) {
-            const imgData = await zip.files[fileName].async("blob");
-            const imgUrl = URL.createObjectURL(imgData);
+        try {
+            const jszip = new JSZip();
+            const zip = await jszip.loadAsync(file);
             
-            const img = document.createElement('img');
-            img.src = imgUrl;
-            viewer.appendChild(img);
-        }
+            // Sadece resimleri filtrele ve dizinleri ayıkla
+            let fileList = Object.keys(zip.files).filter(name => 
+                name.match(/\.(jpg|jpeg|png|webp|gif|avif)$/i) && !zip.files[name].dir
+            );
 
-        status.innerText = fileList.length + " sayfa yüklendi.";
+            if (fileList.length === 0) {
+                status.innerText = "Zip içinde resim bulunamadı!";
+                loader.style.display = "none";
+                return;
+            }
+
+            // Manhwa stili doğal sıralama (1, 2, 10...)
+            fileList.sort((a, b) => a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'}));
+
+            // Resimleri işle ve ekrana bas
+            for (let fileName of fileList) {
+                const imgData = await zip.files[fileName].async("blob");
+                const imgUrl = URL.createObjectURL(imgData);
+                
+                const img = document.createElement('img');
+                img.src = imgUrl;
+                img.loading = "lazy"; // Performans için sadece yaklaştıkça yükle
+                viewer.appendChild(img);
+            }
+
+            status.innerText = fileList.length + " sayfa hazır.";
+            loader.style.display = "none";
+            
+            // Otomatik olarak ilk sayfaya odaklan
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        } catch (err) {
+            status.innerText = "Hata: Zip dosyası okunamadı!";
+            console.error(err);
+            loader.style.display = "none";
+        }
     });
 </script>
 
