@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zen Reader | Minimal</title>
+    <title>Zen Reader | Clean View</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
@@ -24,7 +24,33 @@
             min-height: 100vh;
         }
 
-        /* Ortalanmış Yükleme Alanı */
+        /* Liste Görünümü */
+        #fileListContainer {
+            width: 90%;
+            max-width: 600px;
+            margin: 20px 0;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .zip-item {
+            background: var(--card-bg);
+            padding: 15px 20px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .zip-item:hover { border-color: var(--accent); background: #1d1d1d; }
+        .zip-info { display: flex; align-items: center; gap: 12px; }
+        .zip-icon { color: var(--accent); width: 24px; }
+
+        /* Yükleme Alanı */
         .upload-container {
             display: flex;
             flex-direction: column;
@@ -42,65 +68,46 @@
             text-align: center;
         }
 
-        .upload-container:hover {
-            border-color: var(--accent);
-            box-shadow: 0 0 20px rgba(0, 200, 255, 0.1);
-        }
+        .upload-container:hover { border-color: var(--accent); box-shadow: 0 0 20px rgba(0, 200, 255, 0.1); }
+        .initial-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .upload-icon { width: 64px; height: 64px; margin-bottom: 15px; color: var(--accent); }
+        .upload-container p { margin: 0; font-weight: 600; font-size: 1.1rem; }
+        input[type="file"] { display: none; }
 
-        /* İlk açılıştaki tam ortalama */
-        .initial-center {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
+        /* Okuyucu */
+        #viewer { width: 100%; max-width: 800px; display: flex; flex-direction: column; }
+        #viewer img { width: 100%; height: auto; display: block; }
 
-        .upload-icon {
-            width: 64px;
-            height: 64px;
-            margin-bottom: 15px;
-            color: var(--accent);
-        }
-
-        .upload-container p {
-            margin: 0;
-            font-weight: 600;
-            font-size: 1.1rem;
-            letter-spacing: 1px;
-        }
-
-        .upload-container span {
-            font-size: 0.8rem;
-            color: #666;
-            margin-top: 8px;
-        }
-
-        input[type="file"] {
-            display: none;
-        }
-
-        /* Resim Alanı */
-        #viewer {
+        /* Navigasyon Panelleri (Üst ve Alt) */
+        .nav-wrapper {
+            display: none; /* Başta gizli */
             width: 100%;
             max-width: 800px;
+            padding: 20px 0;
+            justify-content: space-around;
+            align-items: center;
+            background: #000;
+        }
+
+        .nav-btn {
+            background: #222;
+            color: white;
+            border: 1px solid #444;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: 0.2s;
             display: flex;
-            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            min-width: 100px;
+            justify-content: center;
         }
 
-        #viewer img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
+        .nav-btn:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: #000; }
+        .nav-btn:disabled { opacity: 0.2; cursor: not-allowed; }
 
-        /* Alt Seçici (Resimler varken görünür) */
-        #bottomPicker {
-            display: none;
-            margin-top: 40px;
-            margin-bottom: 60px;
-        }
-
-        /* Loading Spinner */
         #loader {
             display: none;
             position: fixed;
@@ -112,13 +119,10 @@
             border-top: 3px solid var(--accent);
             border-radius: 50%;
             animation: spin 1s linear infinite;
+            z-index: 2000;
         }
 
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        @media (max-width: 600px) {
-            .upload-container { width: 80%; }
-        }
     </style>
 </head>
 <body>
@@ -129,79 +133,144 @@
         <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
         </svg>
-        <p>ZIP SEÇ</p>
-        <span>Manhwa okumaya başla</span>
-        <input type="file" class="zipInput" accept=".zip">
+        <p>BÖLÜMLERİ SEÇ</p>
+        <input type="file" id="initialInput" class="zipInput" accept=".zip" multiple>
     </label>
+
+    <div id="fileListContainer"></div>
+
+    <div id="topNav" class="nav-wrapper">
+        <button class="nav-btn prevBtn">⬅ Önceki</button>
+        <button class="nav-btn listBtn">☰ Liste</button>
+        <button class="nav-btn nextBtn">Sonraki ➡</button>
+    </div>
 
     <div id="viewer"></div>
 
-    <label id="bottomPicker" class="upload-container">
-        <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"></path>
-        </svg>
-        <p>YENİ ZIP SEÇ</p>
-        <span>Başka bir bölüme geç</span>
-        <input type="file" class="zipInput" accept=".zip">
-    </label>
+    <div id="bottomNav" class="nav-wrapper" style="margin-bottom: 50px; border-top: 1px solid #222;">
+        <button class="nav-btn prevBtn">⬅ Önceki</button>
+        <button class="nav-btn listBtn">☰ Liste</button>
+        <button class="nav-btn nextBtn">Sonraki ➡</button>
+    </div>
+
+    <input type="file" id="addMoreInput" class="zipInput" accept=".zip" multiple>
 
 <script>
     const viewer = document.getElementById('viewer');
     const mainPicker = document.getElementById('mainPicker');
-    const bottomPicker = document.getElementById('bottomPicker');
+    const fileListContainer = document.getElementById('fileListContainer');
+    const navWrappers = document.querySelectorAll('.nav-wrapper');
     const loader = document.getElementById('loader');
+    
+    let selectedFiles = [];
+    let currentIndex = -1;
 
-    // Her iki input için de aynı fonksiyonu kullanıyoruz
+    // Dosya Seçme ve Sıralama
     document.querySelectorAll('.zipInput').forEach(input => {
-        input.addEventListener('change', handleFile);
+        input.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                const newFiles = Array.from(e.target.files);
+                selectedFiles.push(...newFiles);
+                selectedFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
+                renderFileList();
+            }
+        });
     });
 
-    async function handleFile(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        // Arayüz düzenlemesi
-        loader.style.display = "block";
+    function renderFileList() {
         viewer.innerHTML = '';
-        
-        // İlk yüklemeden sonra ana butonu merkeze almayı bırak, yukarı taşı
+        viewer.style.display = 'none';
+        navWrappers.forEach(nav => nav.style.display = 'none');
+        mainPicker.style.display = 'none';
         mainPicker.classList.remove('initial-center');
-        mainPicker.style.display = 'none'; // Üsttekini tamamen gizle (isteğe bağlı)
-        bottomPicker.style.display = 'none';
+        
+        fileListContainer.innerHTML = '<h3 style="text-align:center; color:var(--accent)">Bölüm Listesi</h3>';
+        fileListContainer.style.display = 'flex';
+
+        selectedFiles.forEach((file, index) => {
+            const item = document.createElement('div');
+            item.className = 'zip-item';
+            item.innerHTML = `
+                <div class="zip-info">
+                    <svg class="zip-icon" fill="currentColor" viewBox="0 0 20 20"><path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm0 2h12v10H4V5z"></path></svg>
+                    <span>${file.name}</span>
+                </div>
+            `;
+            item.onclick = () => { currentIndex = index; loadZip(file); };
+            fileListContainer.appendChild(item);
+        });
+
+        const addMore = document.createElement('div');
+        addMore.className = 'zip-item';
+        addMore.style.borderStyle = 'dashed';
+        addMore.innerHTML = '<div class="zip-info"><span>+ Yeni Bölümler Ekle</span></div>';
+        addMore.onclick = () => document.getElementById('addMoreInput').click();
+        fileListContainer.appendChild(addMore);
+    }
+
+    async function loadZip(file) {
+        if (!file) return;
+        loader.style.display = "block";
+        fileListContainer.style.display = 'none';
+        viewer.innerHTML = '';
+        viewer.style.display = 'flex';
+        navWrappers.forEach(nav => nav.style.display = 'flex');
+
+        // Buton durumlarını her iki panel için güncelle
+        document.querySelectorAll('.prevBtn').forEach(btn => btn.disabled = currentIndex <= 0);
+        document.querySelectorAll('.nextBtn').forEach(btn => btn.disabled = currentIndex >= selectedFiles.length - 1);
 
         try {
             const jszip = new JSZip();
             const zip = await jszip.loadAsync(file);
             
-            let fileList = Object.keys(zip.files).filter(name => 
+            let images = Object.keys(zip.files).filter(name => 
                 name.match(/\.(jpg|jpeg|png|webp|gif|avif)$/i) && !zip.files[name].dir
             );
 
-            // Doğal sıralama
-            fileList.sort((a, b) => a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'}));
+            images.sort((a, b) => a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'}));
 
-            for (let fileName of fileList) {
-                const imgData = await zip.files[fileName].async("blob");
+            for (let imgName of images) {
+                const imgData = await zip.files[imgName].async("blob");
                 const imgUrl = URL.createObjectURL(imgData);
-                
                 const img = document.createElement('img');
                 img.src = imgUrl;
                 img.loading = "lazy";
                 viewer.appendChild(img);
             }
 
-            // İşlem bitince alt seçiciyi göster ve yukarı kaydır
-            bottomPicker.style.display = 'flex';
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
         } catch (err) {
-            alert("Hata: Dosya işlenemedi.");
-            mainPicker.style.display = 'flex';
-            mainPicker.classList.add('initial-center');
+            alert("Hata: Bölüm açılamadı.");
+            renderFileList();
         } finally {
             loader.style.display = "none";
         }
     }
+
+    // Navigasyon Olayları (Tüm buton setleri için)
+    document.querySelectorAll('.prevBtn').forEach(btn => {
+        btn.onclick = () => {
+            if (currentIndex > 0) {
+                currentIndex--;
+                loadZip(selectedFiles[currentIndex]);
+            }
+        };
+    });
+
+    document.querySelectorAll('.nextBtn').forEach(btn => {
+        btn.onclick = () => {
+            if (currentIndex < selectedFiles.length - 1) {
+                currentIndex++;
+                loadZip(selectedFiles[currentIndex]);
+            }
+        };
+    });
+
+    document.querySelectorAll('.listBtn').forEach(btn => {
+        btn.onclick = () => renderFileList();
+    });
 </script>
 
 </body>
