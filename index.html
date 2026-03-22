@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Hızlı Manhwa Okuyucu</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body { background: #111; color: white; display: flex; flex-direction: column; align-items: center; margin: 0; font-family: sans-serif; }
+        #viewer img { display: block; max-width: 100%; height: auto; margin-bottom: 0; }
+        .controls { padding: 20px; position: sticky; top: 0; background: rgba(0,0,0,0.8); width: 100%; text-align: center; z-index: 100; }
+        input[type="file"] { cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="controls">
+    <input type="file" id="zipInput" accept=".zip">
+    <p id="status">Bir .zip dosyası seçin...</p>
+</div>
+
+<div id="viewer"></div>
+
+<script>
+    document.getElementById('zipInput').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const status = document.getElementById('status');
+        const viewer = document.getElementById('viewer');
+        viewer.innerHTML = '';
+        status.innerText = "Dosyalar işleniyor...";
+
+        const jszip = new JSZip();
+        const zip = await jszip.loadAsync(file);
+        
+        // Dosya listesini al ve resim olanları filtrele
+        let fileList = Object.keys(zip.files).filter(name => 
+            name.match(/\.(jpg|jpeg|png|webp|gif)$/i) && !zip.files[name].dir
+        );
+
+        // Doğal sıralama (1, 2, 10 şeklinde)
+        fileList.sort((a, b) => a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'}));
+
+        for (let fileName of fileList) {
+            const imgData = await zip.files[fileName].async("blob");
+            const imgUrl = URL.createObjectURL(imgData);
+            
+            const img = document.createElement('img');
+            img.src = imgUrl;
+            viewer.appendChild(img);
+        }
+
+        status.innerText = fileList.length + " sayfa yüklendi.";
+    });
+</script>
+
+</body>
+</html>
