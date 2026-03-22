@@ -3,186 +3,206 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zen Reader | Modern Manhwa Viewer</title>
+    <title>Zen Reader | Minimal</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         :root {
-            --bg-color: #0f0f0f;
-            --accent-color: #3d5afe;
-            --text-color: #e0e0e0;
-            --panel-bg: #1e1e1e;
+            --bg: #0a0a0a;
+            --accent: #00c8ff;
+            --card-bg: #161616;
+            --text: #ffffff;
         }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            background-color: var(--bg);
+            color: var(--text);
             margin: 0;
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
         }
 
-        /* Üst Menü / Kontrol Paneli */
-        .header {
-            width: 100%;
-            background: var(--panel-bg);
-            padding: 15px 0;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            position: sticky;
-            top: 0;
-            z-index: 1000;
+        /* Ortalanmış Yükleme Alanı */
+        .upload-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 10px;
-        }
-
-        h1 { margin: 0; font-size: 1.2rem; letter-spacing: 2px; color: var(--accent-color); text-transform: uppercase; }
-
-        /* Özelleştirilmiş Dosya Seçme Butonu */
-        .file-upload {
-            position: relative;
-            display: inline-block;
-        }
-
-        .file-upload input[type="file"] {
-            position: absolute;
-            left: 0; top: 0; opacity: 0;
-            width: 100%; height: 100%;
+            justify-content: center;
+            padding: 40px;
+            margin: 20px 0;
+            width: 90%;
+            max-width: 400px;
+            border: 2px dashed #333;
+            border-radius: 20px;
+            background: var(--card-bg);
+            transition: all 0.3s ease;
             cursor: pointer;
+            text-align: center;
         }
 
-        .custom-button {
-            background: var(--accent-color);
-            color: white;
-            padding: 10px 25px;
-            border-radius: 30px;
-            font-weight: bold;
-            transition: transform 0.2s, background 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border: none;
+        .upload-container:hover {
+            border-color: var(--accent);
+            transform: scale(1.02);
+            box-shadow: 0 0 20px rgba(0, 200, 255, 0.1);
         }
 
-        .file-upload:hover .custom-button {
-            background: #536dfe;
-            transform: translateY(-2px);
+        /* İlk açılıştaki tam ortalama */
+        .initial-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
 
-        #status { font-size: 0.85rem; color: #888; margin: 0; }
+        .upload-icon {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 15px;
+            color: var(--accent);
+        }
 
-        /* Okuyucu Alanı */
+        .upload-container p {
+            margin: 0;
+            font-weight: 600;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+        }
+
+        .upload-container span {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Resim Alanı */
         #viewer {
             width: 100%;
-            max-width: 800px; /* PC'de çok yayılmasın diye */
+            max-width: 800px;
             display: flex;
             flex-direction: column;
-            align-items: center;
         }
 
         #viewer img {
             width: 100%;
             height: auto;
             display: block;
-            border-bottom: 1px solid #000; /* Sayfalar arası ince ayrım */
         }
 
-        /* Yükleme Ekranı Animasyonu */
-        .loader {
+        /* Alt Seçici (Resimler varken görünür) */
+        #bottomPicker {
             display: none;
-            width: 30px; height: 30px;
-            border: 3px solid #333;
-            border-top: 3px solid var(--accent-color);
+            margin-top: 40px;
+            margin-bottom: 60px;
+        }
+
+        /* Loading Spinner */
+        #loader {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #222;
+            border-top: 3px solid var(--accent);
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin-top: 10px;
         }
 
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Mobil Ayarlar */
         @media (max-width: 600px) {
-            #viewer { max-width: 100%; }
-            .header { padding: 10px 0; }
+            .upload-container { width: 80%; }
         }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h1>Zen Reader</h1>
-    <div class="file-upload">
-        <div class="custom-button">
-            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
-            ZIP DOSYASI SEÇ
-        </div>
-        <input type="file" id="zipInput" accept=".zip">
-    </div>
-    <p id="status">Bekleniyor...</p>
-    <div id="loader" class="loader"></div>
-</div>
+    <div id="loader"></div>
 
-<div id="viewer"></div>
+    <label id="mainPicker" class="upload-container initial-center">
+        <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
+        </svg>
+        <p>ZIP SEÇ</p>
+        <span>Manhwa okumaya başla</span>
+        <input type="file" class="zipInput" accept=".zip">
+    </label>
+
+    <div id="viewer"></div>
+
+    <label id="bottomPicker" class="upload-container">
+        <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"></path>
+        </svg>
+        <p>YENİ ZIP SEÇ</p>
+        <span>Başka bir bölüme geç</span>
+        <input type="file" class="zipInput" accept=".zip">
+    </label>
 
 <script>
-    const zipInput = document.getElementById('zipInput');
-    const status = document.getElementById('status');
     const viewer = document.getElementById('viewer');
+    const mainPicker = document.getElementById('mainPicker');
+    const bottomPicker = document.getElementById('bottomPicker');
     const loader = document.getElementById('loader');
 
-    zipInput.addEventListener('change', async (e) => {
+    // Her iki input için de aynı fonksiyonu kullanıyoruz
+    document.querySelectorAll('.zipInput').forEach(input => {
+        input.addEventListener('change', handleFile);
+    });
+
+    async function handleFile(e) {
         const file = e.target.files[0];
         if (!file) return;
 
-        // Temizlik ve Hazırlık
-        viewer.innerHTML = '';
-        status.innerText = "Dosyalar açılıyor...";
+        // Arayüz düzenlemesi
         loader.style.display = "block";
+        viewer.innerHTML = '';
+        
+        // İlk yüklemeden sonra ana butonu merkeze almayı bırak, yukarı taşı
+        mainPicker.classList.remove('initial-center');
+        mainPicker.style.display = 'none'; // Üsttekini tamamen gizle (isteğe bağlı)
+        bottomPicker.style.display = 'none';
 
         try {
             const jszip = new JSZip();
             const zip = await jszip.loadAsync(file);
             
-            // Sadece resimleri filtrele ve dizinleri ayıkla
             let fileList = Object.keys(zip.files).filter(name => 
                 name.match(/\.(jpg|jpeg|png|webp|gif|avif)$/i) && !zip.files[name].dir
             );
 
-            if (fileList.length === 0) {
-                status.innerText = "Zip içinde resim bulunamadı!";
-                loader.style.display = "none";
-                return;
-            }
-
-            // Manhwa stili doğal sıralama (1, 2, 10...)
+            // Doğal sıralama
             fileList.sort((a, b) => a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'}));
 
-            // Resimleri işle ve ekrana bas
             for (let fileName of fileList) {
                 const imgData = await zip.files[fileName].async("blob");
                 const imgUrl = URL.createObjectURL(imgData);
                 
                 const img = document.createElement('img');
                 img.src = imgUrl;
-                img.loading = "lazy"; // Performans için sadece yaklaştıkça yükle
+                img.loading = "lazy";
                 viewer.appendChild(img);
             }
 
-            status.innerText = fileList.length + " sayfa hazır.";
-            loader.style.display = "none";
-            
-            // Otomatik olarak ilk sayfaya odaklan
+            // İşlem bitince alt seçiciyi göster ve yukarı kaydır
+            bottomPicker.style.display = 'flex';
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
         } catch (err) {
-            status.innerText = "Hata: Zip dosyası okunamadı!";
-            console.error(err);
+            alert("Hata: Dosya işlenemedi.");
+            mainPicker.style.display = 'flex';
+            mainPicker.classList.add('initial-center');
+        } finally {
             loader.style.display = "none";
         }
-    });
+    }
 </script>
 
 </body>
