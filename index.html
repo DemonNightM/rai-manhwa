@@ -165,14 +165,25 @@
     let selectedFiles = [];
     let currentIndex = -1;
 
-    // Dosya Seçme ve Sıralama
+    // Dosya Seçme ve Sıralama (Mobil uyumlu hale getirildi)
     document.querySelectorAll('.zipInput').forEach(input => {
         input.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
+            if (e.target.files && e.target.files.length > 0) {
                 const newFiles = Array.from(e.target.files);
-                selectedFiles.push(...newFiles);
+                
+                // Mobil cihazlarda mükerrer dosya eklenmesini önlemek için kontrol
+                newFiles.forEach(newFile => {
+                    const isExist = selectedFiles.some(f => f.name === newFile.name && f.size === newFile.size);
+                    if (!isExist) {
+                        selectedFiles.push(newFile);
+                    }
+                });
+
                 selectedFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true, sensitivity: 'base'}));
                 renderFileList();
+                
+                // Input değerini sıfırlıyoruz ki aynı dosya tekrar seçildiğinde change tetiklenebilsin
+                e.target.value = '';
             }
         });
     });
@@ -244,7 +255,7 @@
         } catch (err) {
             alert("Hata: Bölüm açılamadı.");
             renderFileList();
-        } finally {
+        } finaly {
             loader.style.display = "none";
         }
     }
